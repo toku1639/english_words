@@ -7,9 +7,11 @@ import { StatsPage } from './pages/StatsPage'
 import { StudyPage } from './pages/StudyPage'
 
 function App() {
+  const basename = import.meta.env.BASE_URL.replace(/\/$/, '')
+
   return (
     <AppProvider>
-      <BrowserRouter>
+      <BrowserRouter basename={basename}>
         <Layout>
           <Routes>
             <Route path="/" element={<StudyPage />} />

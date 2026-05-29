@@ -3,7 +3,11 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
+// GitHub Pages project site: https://toku1639.github.io/english_words/
+const base = process.env.VITE_BASE_PATH ?? '/english_words/'
+
 export default defineConfig({
+  base,
   plugins: [
     react(),
     tailwindcss(),
@@ -18,20 +22,21 @@ export default defineConfig({
         background_color: '#f4f4f5',
         display: 'standalone',
         orientation: 'portrait',
-        start_url: '/',
+        start_url: base,
+        scope: base,
         icons: [
           {
-            src: '/icon-192.png',
+            src: `${base}icon-192.png`,
             sizes: '192x192',
             type: 'image/png',
           },
           {
-            src: '/icon-512.png',
+            src: `${base}icon-512.png`,
             sizes: '512x512',
             type: 'image/png',
           },
           {
-            src: '/icon-512.png',
+            src: `${base}icon-512.png`,
             sizes: '512x512',
             type: 'image/png',
             purpose: 'maskable',
