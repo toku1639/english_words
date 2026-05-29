@@ -137,14 +137,6 @@ export function StatsPage() {
           進捗をリセット
         </Button>
       </section>
-
-      <section className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
-        <h2 className="text-sm font-semibold text-zinc-900">PWA とは？</h2>
-        <p className="mt-2 text-xs leading-relaxed text-zinc-600">
-          スマホのブラウザメニューから「ホーム画面に追加」すると、通常のアプリのようにアイコンから起動できます。
-          ブラウザのタブやアドレスバーが非表示になり、学習に集中しやすくなります。
-        </p>
-      </section>
     </div>
   )
 }
