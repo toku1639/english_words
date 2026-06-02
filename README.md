@@ -44,4 +44,13 @@ npm run build
 npm run preview
 ```
 
-`dist` を GitHub Pages / Vercel などにデプロイしてください。
+## GitHub Pages への公開
+
+公開 URL: https://toku1639.github.io/english_words/
+
+1. リポジトリ **Settings → Pages**
+2. **Build and deployment → Source** を **Deploy from a branch** にする
+3. **Branch** を **`gh-pages`**、フォルダ **`/ (root)`** にする（`main` のルートではない）
+4. `main` に push すると Actions が `dist` を `gh-pages` ブランチへデプロイする
+
+画面が真っ白なときは、Pages が `main` 直下の開発用 `index.html` を配信している可能性があります。上記のとおり **`gh-pages` ブランチ**に切り替えてください。
