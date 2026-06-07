@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { Word } from '../types'
 import type { StudyDirection } from '../utils/studyHelpers'
@@ -13,6 +13,8 @@ interface WordCardProps {
 }
 
 const SWIPE_THRESHOLD = 80
+const EXIT_TRANSITION_MS = 360
+type ExitDirection = 'left' | 'right'
 
 function WordDetailOverlay({
   word,
@@ -144,10 +146,12 @@ export function WordCard({
   const [detailOpen, setDetailOpen] = useState(false)
   const [offsetX, setOffsetX] = useState(0)
   const [isDragging, setIsDragging] = useState(false)
+  const [exitDirection, setExitDirection] = useState<ExitDirection | null>(null)
   const startX = useRef(0)
   const startY = useRef(0)
   const isHorizontal = useRef<boolean | null>(null)
   const didSwipe = useRef(false)
+  const exitHandled = useRef(false)
 
   const isReverse = direction === 'ja-to-en'
   const frontPrimary = isReverse
@@ -161,8 +165,39 @@ export function WordCard({
     isHorizontal.current = null
   }, [])
 
+  const finishExit = useCallback(
+    (direction: ExitDirection) => {
+      if (exitHandled.current) return
+      exitHandled.current = true
+      if (direction === 'left') onSwipeLeft()
+      else onSwipeRight()
+    },
+    [onSwipeLeft, onSwipeRight],
+  )
+
+  const beginExit = useCallback(
+    (direction: ExitDirection) => {
+      if (exitDirection || detailOpen) return
+      exitHandled.current = false
+      didSwipe.current = true
+      setIsDragging(false)
+      isHorizontal.current = null
+      setExitDirection(direction)
+    },
+    [exitDirection, detailOpen],
+  )
+
+  useEffect(() => {
+    if (!exitDirection) return
+    const timer = window.setTimeout(
+      () => finishExit(exitDirection),
+      EXIT_TRANSITION_MS + 80,
+    )
+    return () => window.clearTimeout(timer)
+  }, [exitDirection, finishExit])
+
   const handlePointerDown = (e: React.PointerEvent) => {
-    if (detailOpen) return
+    if (detailOpen || exitDirection) return
     didSwipe.current = false
     startX.current = e.clientX
     startY.current = e.clientY
@@ -185,17 +220,21 @@ export function WordCard({
   }
 
   const handlePointerUp = () => {
-    if (!isDragging) return
+    if (!isDragging || exitDirection) return
     setIsDragging(false)
 
     if (offsetX > SWIPE_THRESHOLD) {
-      didSwipe.current = true
-      onSwipeRight()
+      beginExit('right')
     } else if (offsetX < -SWIPE_THRESHOLD) {
-      didSwipe.current = true
-      onSwipeLeft()
+      beginExit('left')
+    } else {
+      resetDrag()
     }
-    resetDrag()
+  }
+
+  const handleExitTransitionEnd = (e: React.TransitionEvent<HTMLDivElement>) => {
+    if (e.target !== e.currentTarget || e.propertyName !== 'transform' || !exitDirection) return
+    finishExit(exitDirection)
   }
 
   const handleTap = () => {
@@ -204,47 +243,77 @@ export function WordCard({
   }
 
   const rotation = offsetX * 0.025
-  const leftHintOpacity = offsetX < -20 ? Math.min(Math.abs(offsetX) / SWIPE_THRESHOLD, 1) : 0
-  const rightHintOpacity = offsetX > 20 ? Math.min(offsetX / SWIPE_THRESHOLD, 1) : 0
+  const dragLeftHint = offsetX < -20 ? Math.min(Math.abs(offsetX) / SWIPE_THRESHOLD, 1) : 0
+  const dragRightHint = offsetX > 20 ? Math.min(offsetX / SWIPE_THRESHOLD, 1) : 0
+  const leftZoneOpacity =
+    exitDirection === 'left' ? 1 : dragLeftHint > 0 ? 0.4 + dragLeftHint * 0.6 : 0.16
+  const rightZoneOpacity =
+    exitDirection === 'right' ? 1 : dragRightHint > 0 ? 0.4 + dragRightHint * 0.6 : 0.16
+  const isExiting = exitDirection !== null
+  const cardTransform = exitDirection
+    ? exitDirection === 'left'
+      ? 'translateX(calc(-100vw - 24px)) rotate(-24deg) translateY(28px) scale(0.92)'
+      : 'translateX(calc(100vw + 24px)) rotate(24deg) translateY(28px) scale(0.92)'
+    : `translateX(${offsetX}px) rotate(${rotation}deg)`
+  const cardTransition = isDragging
+    ? 'none'
+    : `transform ${EXIT_TRANSITION_MS}ms cubic-bezier(0.4, 0, 0.2, 1), opacity ${EXIT_TRANSITION_MS}ms ease-out, box-shadow ${EXIT_TRANSITION_MS}ms ease-out`
 
   return (
     <>
       <div className="relative mx-auto w-full max-w-md select-none">
-        <div
-          className="pointer-events-none absolute inset-0 flex items-center justify-between px-6"
-          aria-hidden
-        >
+        <div className="pointer-events-none absolute inset-y-3 left-0 w-[24%]" aria-hidden>
           <div
-            className="rounded-lg border-2 border-amber-400 px-3 py-1.5 text-xs font-semibold uppercase tracking-widest text-amber-600"
-            style={{ opacity: leftHintOpacity, transform: 'rotate(-12deg)' }}
+            className="flex h-full flex-col items-center justify-center rounded-2xl border border-dashed border-amber-200/80 bg-amber-50/50 px-2 transition-opacity duration-300"
+            style={{ opacity: leftZoneOpacity }}
           >
-            Again
+            <IconX width={18} height={18} className="text-amber-500/70" />
+            <span className="mt-1 text-[10px] font-semibold uppercase tracking-wider text-amber-600/80">
+              Again
+            </span>
           </div>
+        </div>
+        <div className="pointer-events-none absolute inset-y-3 right-0 w-[24%]" aria-hidden>
           <div
-            className="rounded-lg border-2 border-emerald-500 px-3 py-1.5 text-xs font-semibold uppercase tracking-widest text-emerald-600"
-            style={{ opacity: rightHintOpacity, transform: 'rotate(12deg)' }}
+            className="flex h-full flex-col items-center justify-center rounded-2xl border border-dashed border-emerald-200/80 bg-emerald-50/50 px-2 transition-opacity duration-300"
+            style={{ opacity: rightZoneOpacity }}
           >
-            Got it
+            <IconCheck width={18} height={18} className="text-emerald-500/70" />
+            <span className="mt-1 text-[10px] font-semibold uppercase tracking-wider text-emerald-600/80">
+              Got it
+            </span>
           </div>
         </div>
 
         <div
-          className={`touch-none transition-transform duration-300 ${
+          className={`relative z-10 touch-none ${
             detailOpen ? 'scale-[0.96] opacity-50' : ''
-          }`}
+          } ${isExiting ? 'pointer-events-none' : ''}`}
           style={{
-            transform: detailOpen
-              ? undefined
-              : `translateX(${offsetX}px) rotate(${rotation}deg)`,
-            transition: isDragging ? 'none' : 'transform 0.28s cubic-bezier(0.22, 1, 0.36, 1)',
+            transform: detailOpen ? undefined : cardTransform,
+            opacity: detailOpen ? undefined : isExiting ? 0.35 : 1,
+            transition: detailOpen ? undefined : cardTransition,
           }}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
           onPointerCancel={handlePointerUp}
+          onTransitionEnd={handleExitTransitionEnd}
           onClick={handleTap}
         >
-          <article className="cursor-pointer overflow-hidden rounded-2xl border border-zinc-200 bg-white px-5 py-6 shadow-[var(--shadow-card)] transition-shadow active:shadow-md">
+          <article
+            className={`cursor-pointer overflow-hidden rounded-2xl border bg-white px-5 py-6 shadow-[var(--shadow-card)] transition-[border-color,box-shadow] duration-200 active:shadow-md ${
+              exitDirection === 'left'
+                ? 'border-amber-300'
+                : exitDirection === 'right'
+                  ? 'border-emerald-300'
+                  : offsetX < -20
+                    ? 'border-amber-200'
+                    : offsetX > 20
+                      ? 'border-emerald-200'
+                      : 'border-zinc-200'
+            }`}
+          >
             <div className="flex items-start justify-between gap-3">
               <span className="text-xs font-medium tabular-nums text-zinc-400">
                 #{word.no.toString().padStart(3, '0')}
@@ -280,11 +349,12 @@ export function WordCard({
           </article>
         </div>
 
-        <div className="mt-5 grid grid-cols-3 gap-3">
+        <div className="relative z-10 mt-5 grid grid-cols-3 gap-3">
           <button
             type="button"
-            onClick={onSwipeLeft}
-            className="flex flex-col items-center gap-1.5 rounded-2xl border border-zinc-200 bg-white py-3.5 text-zinc-600 transition-all active:scale-[0.97] hover:border-amber-200 hover:bg-amber-50 hover:text-amber-800"
+            onClick={() => beginExit('left')}
+            disabled={isExiting}
+            className="flex flex-col items-center gap-1.5 rounded-2xl border border-zinc-200 bg-white py-3.5 text-zinc-600 transition-all active:scale-[0.97] hover:border-amber-200 hover:bg-amber-50 hover:text-amber-800 disabled:pointer-events-none disabled:opacity-40"
             aria-label="間違えた"
           >
             <IconX width={20} height={20} />
@@ -293,7 +363,8 @@ export function WordCard({
           <button
             type="button"
             onClick={() => speakEnglish(word.english)}
-            className="flex flex-col items-center gap-1.5 rounded-2xl border border-zinc-200 bg-white py-3.5 text-zinc-600 transition-all active:scale-[0.97] hover:bg-zinc-50 hover:text-zinc-900"
+            disabled={isExiting}
+            className="flex flex-col items-center gap-1.5 rounded-2xl border border-zinc-200 bg-white py-3.5 text-zinc-600 transition-all active:scale-[0.97] hover:bg-zinc-50 hover:text-zinc-900 disabled:pointer-events-none disabled:opacity-40"
             aria-label="発音"
           >
             <IconVolume width={20} height={20} />
@@ -301,8 +372,9 @@ export function WordCard({
           </button>
           <button
             type="button"
-            onClick={onSwipeRight}
-            className="flex flex-col items-center gap-1.5 rounded-2xl border border-zinc-900 bg-zinc-900 py-3.5 text-white transition-all active:scale-[0.97] hover:bg-zinc-800"
+            onClick={() => beginExit('right')}
+            disabled={isExiting}
+            className="flex flex-col items-center gap-1.5 rounded-2xl border border-zinc-900 bg-zinc-900 py-3.5 text-white transition-all active:scale-[0.97] hover:bg-zinc-800 disabled:pointer-events-none disabled:opacity-40"
             aria-label="覚えた"
           >
             <IconCheck width={20} height={20} />
