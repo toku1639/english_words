@@ -243,12 +243,6 @@ export function WordCard({
   }
 
   const rotation = offsetX * 0.025
-  const dragLeftHint = offsetX < -20 ? Math.min(Math.abs(offsetX) / SWIPE_THRESHOLD, 1) : 0
-  const dragRightHint = offsetX > 20 ? Math.min(offsetX / SWIPE_THRESHOLD, 1) : 0
-  const leftZoneOpacity =
-    exitDirection === 'left' ? 1 : dragLeftHint > 0 ? 0.4 + dragLeftHint * 0.6 : 0.16
-  const rightZoneOpacity =
-    exitDirection === 'right' ? 1 : dragRightHint > 0 ? 0.4 + dragRightHint * 0.6 : 0.16
   const isExiting = exitDirection !== null
   const cardTransform = exitDirection
     ? exitDirection === 'left'
@@ -262,29 +256,6 @@ export function WordCard({
   return (
     <>
       <div className="relative mx-auto w-full max-w-md select-none">
-        <div className="pointer-events-none absolute inset-y-3 left-0 w-[24%]" aria-hidden>
-          <div
-            className="flex h-full flex-col items-center justify-center rounded-2xl border border-dashed border-amber-200/80 bg-amber-50/50 px-2 transition-opacity duration-300"
-            style={{ opacity: leftZoneOpacity }}
-          >
-            <IconX width={18} height={18} className="text-amber-500/70" />
-            <span className="mt-1 text-[10px] font-semibold uppercase tracking-wider text-amber-600/80">
-              Again
-            </span>
-          </div>
-        </div>
-        <div className="pointer-events-none absolute inset-y-3 right-0 w-[24%]" aria-hidden>
-          <div
-            className="flex h-full flex-col items-center justify-center rounded-2xl border border-dashed border-emerald-200/80 bg-emerald-50/50 px-2 transition-opacity duration-300"
-            style={{ opacity: rightZoneOpacity }}
-          >
-            <IconCheck width={18} height={18} className="text-emerald-500/70" />
-            <span className="mt-1 text-[10px] font-semibold uppercase tracking-wider text-emerald-600/80">
-              Got it
-            </span>
-          </div>
-        </div>
-
         <div
           className={`relative z-10 touch-none ${
             detailOpen ? 'scale-[0.96] opacity-50' : ''
